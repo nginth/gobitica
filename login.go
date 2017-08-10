@@ -7,6 +7,9 @@ import (
 	"net/url"
 	"io/ioutil"
 	"encoding/json"
+	"bytes"
+	"strconv"
+	"errors"
 )
 
 type Login struct {
@@ -18,13 +21,20 @@ type Login struct {
 	} `json:"data"`
 }
 
-func login(ctx context.Context, user, pass string) (string, string) {
+func login(ctx context.Context, user, pass string) (string, string, error) {
 	var client http.Client
 
-	resp, err := client.PostForm("https://habitica.com/api/v3/user/auth/local/login", 
-		url.Values{"username": {user}, "password": {pass}})
+	data := url.Values{"username": {user}, "password": {pass}}
+	request, err := http.NewRequest(
+		"POST",
+		"https://habitica.com/api/v3/user/auth/local/login", 
+		bytes.NewBufferString(data.Encode()))
+    request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+    request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	request = request.WithContext(ctx)
+	resp, err := client.Do(request)
 	if err != nil {
-		fmt.Println("error")
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
@@ -32,18 +42,25 @@ func login(ctx context.Context, user, pass string) (string, string) {
 	if resp.StatusCode == 200 {
 		bodyBytes, err2 := ioutil.ReadAll(resp.Body)
 		if err2 != nil {
-			fmt.Println("error 2")
+			return "", "", err2
 		}
 		err3 := json.Unmarshal(bodyBytes, &loginData)
 		if err3 != nil {
-			fmt.Println("error 3")
+			return "", "", err3
 		}
+	} else {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", "", errors.New(fmt.Sprintf("StatusCode %d, Body %s \n", resp.StatusCode, bodyBytes))
 	}
-	return loginData.Data.Id, loginData.Data.ApiToken 
+	return loginData.Data.Id, loginData.Data.ApiToken, err
 }
 
 
 func main() {
-	id, token := login(context.TODO(), "user", "pass")
-	fmt.Println("id: ", id, "token: ", token)
+	id, token, err := login(context.TODO(), "user", "pass")
+	if err != nil {
+		fmt.Println("err: ", err.Error())
+	} else {
+		fmt.Println("id: ", id, "token: ", token)
+	}
 }
