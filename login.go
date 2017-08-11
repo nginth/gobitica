@@ -10,19 +10,10 @@ import (
 	"bytes"
 	"strconv"
 	"errors"
+	"github.com/nginth/gobitica/models"
 )
 
-type Login struct {
-	Success bool `json:"success"`
-	Data struct {
-		Id string `json:"id"`
-		ApiToken string `json:"apiToken"`
-		NewUser bool `json:"newUser"`
-	} `json:"data"`
-}
-
 func login(ctx context.Context, user, pass string) (string, string, error) {
-	
 	resp, err := postToLogin(ctx, user, pass)
 	if err != nil {
 		return "", "", err
@@ -31,7 +22,7 @@ func login(ctx context.Context, user, pass string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
 	return loginData.Data.Id, loginData.Data.ApiToken, err
 }
@@ -55,8 +46,8 @@ func postToLogin(ctx context.Context, user, pass string) (*http.Response, error)
 	return resp, nil
 }
 
-func readLoginBody(resp *http.Response) (Login, error) {
-	var loginData Login
+func readLoginBody(resp *http.Response) (models.LoginResponse, error) {
+	var loginData models.LoginResponse
 
 	if resp.StatusCode == 200 {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
