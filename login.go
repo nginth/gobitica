@@ -22,6 +22,21 @@ type Login struct {
 }
 
 func login(ctx context.Context, user, pass string) (string, string, error) {
+	
+	resp, err := postToLogin(ctx, user, pass)
+	if err != nil {
+		return "", "", err
+	}
+	loginData, err := readLoginBody(resp)
+	if err != nil {
+		return "", "", err
+	}
+	resp.Body.Close()
+
+	return loginData.Data.Id, loginData.Data.ApiToken, err
+}
+
+func postToLogin(ctx context.Context, user, pass string) (*http.Response, error) {
 	var client http.Client
 
 	data := url.Values{"username": {user}, "password": {pass}}
@@ -34,25 +49,33 @@ func login(ctx context.Context, user, pass string) (string, string, error) {
 	request = request.WithContext(ctx)
 	resp, err := client.Do(request)
 	if err != nil {
-		return "", "", err
+		return resp, err
 	}
-	defer resp.Body.Close()
 
+	return resp, nil
+}
+
+func readLoginBody(resp *http.Response) (Login, error) {
 	var loginData Login
+
 	if resp.StatusCode == 200 {
-		bodyBytes, err2 := ioutil.ReadAll(resp.Body)
-		if err2 != nil {
-			return "", "", err2
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return loginData, err
 		}
-		err3 := json.Unmarshal(bodyBytes, &loginData)
-		if err3 != nil {
-			return "", "", err3
+		err2 := json.Unmarshal(bodyBytes, &loginData)
+		if err2 != nil {
+			return loginData, err2
 		}
 	} else {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return "", "", errors.New(fmt.Sprintf("StatusCode %d, Body %s \n", resp.StatusCode, bodyBytes))
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return loginData, err
+		}
+		return loginData, errors.New(fmt.Sprintf("StatusCode %d, Body %s \n", resp.StatusCode, bodyBytes))
 	}
-	return loginData.Data.Id, loginData.Data.ApiToken, err
+	
+	return loginData, nil
 }
 
 
