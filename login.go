@@ -68,13 +68,3 @@ func readLoginBody(resp *http.Response) (models.LoginResponse, error) {
 	
 	return loginData, nil
 }
-
-
-func main() {
-	id, token, err := login(context.TODO(), "user", "pass")
-	if err != nil {
-		fmt.Println("err: ", err.Error())
-	} else {
-		fmt.Println("id: ", id, "token: ", token)
-	}
-}
